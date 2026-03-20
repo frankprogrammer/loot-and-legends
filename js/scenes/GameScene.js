@@ -16,10 +16,11 @@
         h,
         label,
         fill = 0x2d1f15,
-        stroke = 0x8b7355
+        stroke = 0x8b7355,
+        alpha = 0.35
       ) => {
         const rect = this.add
-          .rectangle(x, y, w, h, fill, 0.35)
+          .rectangle(x, y, w, h, fill, alpha)
           .setStrokeStyle(2, stroke, 1);
 
         const text = this.add
@@ -37,10 +38,10 @@
 
       // Match the prompt's Phase 1 layout zones with rectangles.
       // Wave counter: 20–55 (height 35)
-      drawZone(W / 2, 37.5, W, 35, 'WAVE COUNTER', 0x3d2b1f);
+      drawZone(W / 2, 37.5, W, 35, 'WAVE COUNTER', 0x3d2b1f, 0x8b7355, 0.18);
 
       // Player HP bar: 55–85 (height 30) at top-left of battle scene
-      drawZone(W / 2 - 95, 70, 180, 30, 'PLAYER HP BAR', 0x2d1f15, 0xc0392b);
+      drawZone(110, 69, 180, 18, 'PLAYER HP BAR', 0x2d1f15, 0xc0392b, 0.12);
 
       // Battle scene: 85–400 (height 315)
       drawZone(W / 2, 242.5, W, 315, 'BATTLE SCENE', 0x2d1f15);
@@ -154,10 +155,54 @@
           ease: 'Back.easeOut',
         });
 
-        this.slotMachine.spin().then(() => {
-          this.spinButtonText.setText('SPIN');
-          enableSpin();
+        this.slotMachine.spin().then(({ action }) => {
+          if (!this.battle) {
+            this.spinButtonText.setText('SPIN');
+            enableSpin();
+            return;
+          }
+
+          this.battle.executeAction(action).then(({ gameOver }) => {
+            if (gameOver) return;
+            this.spinButtonText.setText('SPIN');
+            enableSpin();
+          });
         });
+      });
+
+      // Phase 3: Battle layer (Goblin + Enemy + HP + action animations)
+      this.battle = new window.BattleScene(this, {
+        playerX: 100,
+        playerY: 260,
+        playerHPBarX: 20,
+        playerHPBarY: 60,
+        playerHPBarW: 180,
+        playerHPBarH: 18,
+        enemyX: 290,
+        enemyY: 260,
+        enemyHPBarX: 220,
+        enemyHPBarY: 190,
+        enemyHPBarW: 150,
+        enemyHPBarH: 14,
+        onGameOver: (wave) => {
+          disableSpin();
+          this.spinButtonText.setText('...');
+
+          const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.65);
+          overlay.setDepth(500);
+
+          const t = this.add
+            .text(W / 2, H / 2, `GAME OVER\nWAVE ${wave}`, {
+              fontFamily: 'Arial, Helvetica, sans-serif',
+              fontSize: '34px',
+              color: '#FFD700',
+              fontStyle: 'bold',
+              align: 'center',
+              wordWrap: { width: W - 40, useAdvancedWrap: true },
+            })
+            .setOrigin(0.5);
+          t.setDepth(501);
+        },
       });
     }
   }
