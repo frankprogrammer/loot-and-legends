@@ -41,3 +41,5 @@ After each phase, prompt Cursor with any bug fixes or small tweaks that you want
 Then move on to the next Phase.
 
 I am currently looking into ChatGPT for artwork generation: https://www.youtube.com/watch?v=wO51cIue9xA
+
+Check out the current build at https://loot-and-legends.franktheprogrammer.workers.dev/
