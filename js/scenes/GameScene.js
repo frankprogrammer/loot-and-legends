@@ -68,6 +68,97 @@
           color: '#8B7355',
         })
         .setOrigin(0.5);
+
+      // Phase 2: Slot machine + SPIN button.
+      const reelAreaW = 320;
+      const reelAreaH = 200;
+      const cellW = 100;
+      const gap = 10;
+      const cellH = 60;
+      const visibleRows = 3;
+      const topPad = 10;
+
+      const slotZoneTop = 415; // from the Phase 1 design doc
+      const slotZoneH = 255;
+      const reelAreaTop = slotZoneTop + (slotZoneH - reelAreaH) / 2; // 442.5
+      const reelAreaLeft = W / 2 - reelAreaW / 2; // 35
+
+      this.slotMachine = new window.SlotMachine(this, {
+        reelAreaTop,
+        reelAreaLeft,
+        reelAreaW,
+        reelAreaH,
+        cellW,
+        cellH,
+        visibleRows,
+        topPad,
+        gap,
+      });
+
+      const spinBtnX = W / 2;
+      const spinBtnY = 725;
+      const spinW = 280;
+      const spinH = 70;
+
+      this.spinButtonRect = this.add
+        .rectangle(spinBtnX, spinBtnY, spinW, spinH, 0x8b0000, 1)
+        .setStrokeStyle(3, 0x5c0000, 1)
+        .setDepth(30);
+
+      const spinText = this.add
+        .text(spinBtnX, spinBtnY, 'SPIN', {
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: '28px',
+          color: '#F5E6D3',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(31);
+
+      this.spinButtonText = spinText;
+
+      const enableSpin = () => {
+        this.spinButtonRect.setInteractive({ useHandCursor: true });
+      };
+
+      const disableSpin = () => {
+        this.spinButtonRect.disableInteractive();
+      };
+
+      enableSpin();
+
+      // Subtle idle pulsing for the "ready" state.
+      this.tweens.add({
+        targets: this.spinButtonRect,
+        scaleX: 1.02,
+        scaleY: 1.02,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+
+      this.spinButtonRect.on('pointerdown', () => {
+        if (!this.slotMachine || this.slotMachine.isSpinning) return;
+
+        disableSpin();
+        this.spinButtonText.setText('...');
+
+        // Press feedback.
+        this.tweens.add({
+          targets: this.spinButtonRect,
+          scaleX: 0.93,
+          scaleY: 0.93,
+          duration: 80,
+          yoyo: true,
+          ease: 'Back.easeOut',
+        });
+
+        this.slotMachine.spin().then(() => {
+          this.spinButtonText.setText('SPIN');
+          enableSpin();
+        });
+      });
     }
   }
 
