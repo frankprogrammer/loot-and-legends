@@ -171,7 +171,9 @@
       });
 
       // Phase 3: Battle layer (Goblin + Enemy + HP + action animations)
+      this.session = new window.SessionState();
       this.battle = new window.BattleScene(this, {
+        sessionState: this.session,
         playerX: 100,
         playerY: 260,
         playerHPBarX: 20,
@@ -184,24 +186,18 @@
         enemyHPBarY: 190,
         enemyHPBarW: 150,
         enemyHPBarH: 14,
-        onGameOver: (wave) => {
+        onGameOver: (sessionSnapshot) => {
           disableSpin();
           this.spinButtonText.setText('...');
 
-          const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.65);
-          overlay.setDepth(500);
-
-          const t = this.add
-            .text(W / 2, H / 2, `GAME OVER\nWAVE ${wave}`, {
-              fontFamily: 'Arial, Helvetica, sans-serif',
-              fontSize: '34px',
-              color: '#FFD700',
-              fontStyle: 'bold',
-              align: 'center',
-              wordWrap: { width: W - 40, useAdvancedWrap: true },
-            })
-            .setOrigin(0.5);
-          t.setDepth(501);
+          this.resultCard = new window.ResultCard(this, {
+            session: sessionSnapshot,
+            onFightAgain: () => {
+              this.battle.restartRun();
+              this.spinButtonText.setText('SPIN');
+              enableSpin();
+            },
+          });
         },
       });
     }

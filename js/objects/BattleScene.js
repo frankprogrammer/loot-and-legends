@@ -8,11 +8,10 @@
       this.player = null;
       this.enemy = null;
 
-      this.playerMaxHP = opts.playerMaxHP ?? 100;
-      this.currentWave = 1;
+      this.session = opts.sessionState ?? new window.SessionState();
+      this.playerMaxHP = this.session.playerMaxHP;
 
       this.isBusy = false;
-      this.gameOver = false;
 
       // Shield persists until next incoming skull (with speed exception).
       this.shieldState = null; // { power, reflectPower }
@@ -25,7 +24,7 @@
 
       // HUD.
       this.waveText = this.scene.add
-        .text(this.W / 2, 37.5, 'WAVE 1', {
+        .text(this.W / 2, 37.5, `WAVE ${this.session.currentWave}`, {
           fontFamily: 'Arial, Helvetica, sans-serif',
           fontSize: '26px',
           color: '#FFD700',
@@ -58,7 +57,7 @@
       this.onGameOver = opts.onGameOver ?? (() => {});
 
       // Start with first enemy.
-      this.spawnEnemyForWave(this.currentWave, true);
+      this.spawnEnemyForWave(this.session.currentWave, true);
     }
 
     spawnEnemyForWave(wave, immediate = false) {
@@ -86,11 +85,15 @@
     }
 
     async executeAction(action) {
-      if (this.isBusy || this.gameOver) return { gameOver: this.gameOver };
+      if (this.isBusy || this.session.isGameOver) {
+        return { gameOver: this.session.isGameOver };
+      }
       this.isBusy = true;
 
       try {
-        if (!action || !action.type) return { gameOver: this.gameOver };
+        if (!action || !action.type) {
+          return { gameOver: this.session.isGameOver };
+        }
 
         if (action.type === 'sword') {
           await this._handlePlayerSword(action);
@@ -107,11 +110,11 @@
         this.isBusy = false;
       }
 
-      return { gameOver: this.gameOver };
+      return { gameOver: this.session.isGameOver };
     }
 
     _updateWaveText() {
-      this.waveText.setText(`WAVE ${this.currentWave}`);
+      this.waveText.setText(`WAVE ${this.session.currentWave}`);
       this.scene.tweens.add({
         targets: this.waveText,
         scale: 1.12,
@@ -146,6 +149,10 @@
       await this.enemy.playTakeDamageAnimation(dmg >= 40);
 
       this.enemy.setHP(this.enemy.hp - dmg);
+      this.session.totalDamageDealt += dmg;
+      if (dmg > this.session.bestHit.value) {
+        this.session.bestHit = { name: action.name ?? 'ATTACK', value: dmg };
+      }
       window.FloatingText.spawn(this.scene, `-${dmg}`, ex, ey - 60, '#E74C3C', {
         fontSize: 20,
       });
@@ -202,6 +209,10 @@
       await this.enemy.playTakeDamageAnimation(dmg >= 60);
 
       this.enemy.setHP(this.enemy.hp - dmg);
+      this.session.totalDamageDealt += dmg;
+      if (dmg > this.session.bestHit.value) {
+        this.session.bestHit = { name: action.name ?? 'ATTACK', value: dmg };
+      }
       window.FloatingText.spawn(this.scene, `-${dmg}`, this.enemy.x, this.enemy.y - 55, '#E74C3C', {
         fontSize: 20,
       });
@@ -240,6 +251,9 @@
 
       this.shieldState = { power, reflectPower };
       await this.player.playShieldSet();
+      this.session.shieldActive = true;
+      this.session.shieldPower = power;
+      this.session.shieldReflectPower = reflectPower;
       window.FloatingText.spawn(this.scene, 'SHIELDED!', this.player.x, this.player.y - 70, '#2980B9', {
         fontSize: 18,
       });
@@ -286,6 +300,9 @@
 
         // Shield is consumed on the next skull hit.
         this.player.setShieldActive(false);
+        this.session.shieldActive = false;
+        this.session.shieldPower = 0;
+        this.session.shieldReflectPower = 0;
         this.shieldState = null;
 
         window.FloatingText.spawn(
@@ -314,6 +331,15 @@
         );
       }
 
+      // Player death check immediately after damage application.
+      if (this.player.hp <= 0 && !this.session.isGameOver) {
+        await this.player.playDeathAnimation();
+        this.session.isGameOver = true;
+        const snapshot = this._getSessionSnapshot();
+        this.onGameOver(snapshot);
+        return;
+      }
+
       // Apply reflect damage if Fortress.
       if (reflected > 0 && this.enemy.hp > 0) {
         await this.enemy.playTakeDamageAnimation(false);
@@ -333,27 +359,29 @@
       }
 
       // Player death.
-      if (this.player.hp <= 0 && !this.gameOver) {
-        await this.player.playDeathAnimation();
-        this.gameOver = true;
-        this.onGameOver(this.currentWave);
-      }
+      // (handled immediately after damage)
     }
 
     async _handleEnemyDeathAndNextWave() {
       // Enemy death animation + next enemy entry.
       await this.enemy.playDeathAnimation();
 
-      this.currentWave += 1;
+      this.session.enemiesSlain += 1;
+      this.session.currentWave += 1;
       this._updateWaveText();
 
       // Small "WAVE X" flash in center of battle area.
-      const centerText = this.scene.add.text(this.W / 2, 260, `WAVE ${this.currentWave}`, {
+      const centerText = this.scene.add.text(
+        this.W / 2,
+        260,
+        `WAVE ${this.session.currentWave}`,
+        {
         fontFamily: 'Arial, Helvetica, sans-serif',
         fontSize: '34px',
         color: '#FFD700',
         fontStyle: 'bold',
-      });
+      }
+      );
       centerText.setOrigin(0.5);
       centerText.setDepth(260);
       centerText.setAlpha(0);
@@ -379,7 +407,47 @@
 
       await new Promise((resolve) => this.scene.time.delayedCall(250, resolve));
 
-      this.spawnEnemyForWave(this.currentWave, false);
+      this.spawnEnemyForWave(this.session.currentWave, false);
+    }
+
+    restartRun() {
+      if (this.isBusy) return;
+
+      this.session.reset();
+      this.shieldState = null;
+
+      // Reset player visuals/state.
+      if (this.player) {
+        this.player.setHP(this.session.playerHP);
+        this.player.setShieldActive(false);
+      }
+
+      // Reset wave HUD.
+      if (this.waveText) {
+        this.waveText.setText(`WAVE ${this.session.currentWave}`);
+      }
+
+      // Respawn first enemy.
+      this.spawnEnemyForWave(this.session.currentWave, true);
+
+      // Ensure no previous animations consider the run over.
+      this.session.isGameOver = false;
+    }
+
+    _getSessionSnapshot() {
+      return {
+        playerMaxHP: this.session.playerMaxHP,
+        playerHP: this.session.playerHP,
+        shieldActive: this.session.shieldActive,
+        shieldPower: this.session.shieldPower,
+        currentWave: this.session.currentWave,
+        totalDamageDealt: this.session.totalDamageDealt,
+        enemiesSlain: this.session.enemiesSlain,
+        bestHit: {
+          name: this.session.bestHit?.name ?? '',
+          value: this.session.bestHit?.value ?? 0,
+        },
+      };
     }
   }
 
