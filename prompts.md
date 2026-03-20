@@ -11,4 +11,5 @@ This file logs user prompts for this project. Future prompts will be appended he
 - **build phase 3**
 - **build phase 4**
 - **build phase 5**
+- **build phase 6**
 

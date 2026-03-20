@@ -14,6 +14,8 @@
       this.scene = scene;
       this.onFightAgain = opts.onFightAgain ?? (() => {});
       this.session = opts.session;
+      this.newRecord = opts.newRecord ?? false;
+      this.bestWave = opts.bestWave ?? this.session.currentWave;
 
       const W = scene.scale.gameSize.width;
       const H = scene.scale.gameSize.height;
@@ -77,6 +79,45 @@
         });
       }
 
+      if (this.newRecord) {
+        const badgeY = cardY + 70;
+        this.newRecordText = scene.add
+          .text(W / 2, badgeY, '★ NEW RECORD! ★', {
+            fontFamily: 'Arial, Helvetica, sans-serif',
+            fontSize: '22px',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(502);
+
+        this.scene.tweens.add({
+          targets: this.newRecordText,
+          scale: 1.08,
+          duration: 420,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+
+        // Sparkles around the badge (cosmetic).
+        for (let i = 0; i < 14; i++) {
+          const sx = W / 2 + (Math.random() - 0.5) * 240;
+          const sy = badgeY + (Math.random() - 0.5) * 60;
+          const s = scene.add.circle(sx, sy, 2.2, '#FFD700', 0.95);
+          s.setDepth(503);
+          scene.tweens.add({
+            targets: s,
+            scale: 0.2,
+            alpha: 0,
+            duration: 900 + Math.random() * 300,
+            ease: 'Power2',
+            onComplete: () => s.destroy(),
+          });
+        }
+      }
+
       const bestHit =
         this.session.bestHit?.name && this.session.bestHit?.value
           ? `${this.session.bestHit.name} (${this.session.bestHit.value})`
@@ -135,7 +176,15 @@
       this.card.setScale(0);
       this.card.setAlpha(0.01);
       this.scene.tweens.add({
-        targets: [this.card, this.title, this.waveText, this.rankText, this.stats, this.fightBtn, this.fightBtnText],
+        targets: [
+          this.card,
+          this.title,
+          this.waveText,
+          this.rankText,
+          this.stats,
+          this.fightBtn,
+          this.fightBtnText,
+        ],
         scale: { from: 0, to: 1 },
         alpha: { from: 0.01, to: 1 },
         duration: 400,
@@ -154,6 +203,7 @@
       if (this.title) this.title.destroy();
       if (this.waveText) this.waveText.destroy();
       if (this.rankText) this.rankText.destroy();
+      if (this.newRecordText) this.newRecordText.destroy();
       if (this.stats) this.stats.destroy();
       if (this.fightBtn) this.fightBtn.destroy();
       if (this.fightBtnText) this.fightBtnText.destroy();

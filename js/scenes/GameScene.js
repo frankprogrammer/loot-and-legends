@@ -8,6 +8,19 @@
       const W = this.scale.gameSize.width;
       const H = this.scale.gameSize.height;
 
+      const BEST_WAVE_KEY = 'lootlegends_best_wave';
+      const loadBestWave = () => {
+        try {
+          const raw = window.localStorage.getItem(BEST_WAVE_KEY);
+          const n = raw == null ? 0 : parseInt(raw, 10);
+          return Number.isFinite(n) ? n : 0;
+        } catch (e) {
+          return 0;
+        }
+      };
+
+      const bestWaveInitial = loadBestWave();
+
       // Helper to draw labeled placeholder zones.
       const drawZone = (
         x,
@@ -34,6 +47,8 @@
 
         rect.setDepth(1);
         text.setDepth(2);
+
+        return { rect, text };
       };
 
       // Match the prompt's Phase 1 layout zones with rectangles.
@@ -56,7 +71,14 @@
       drawZone(W / 2, 725, W, 90, 'SPIN BUTTON', 0x4a3728, 0xffd700);
 
       // Best score zone: 775–800 (height 25)
-      drawZone(W / 2, 787.5, 240, 25, 'BEST: Wave X', 0x2d1f15);
+      const bestZone = drawZone(
+        W / 2,
+        787.5,
+        240,
+        25,
+        `BEST: Wave ${bestWaveInitial}`,
+        0x2d1f15
+      );
 
       // Bottom padding: 800–844 (height 44)
       drawZone(W / 2, 822, W, 44, 'SAFE AREA', 0x1a0e0a);
@@ -190,8 +212,29 @@
           disableSpin();
           this.spinButtonText.setText('...');
 
+          // Persist best wave + detect NEW RECORD.
+          const currentWave = sessionSnapshot?.currentWave ?? 1;
+          const previousBest = bestWaveInitial;
+          const isNewRecord = currentWave > previousBest;
+
+          if (isNewRecord) {
+            try {
+              window.localStorage.setItem(
+                BEST_WAVE_KEY,
+                String(currentWave)
+              );
+            } catch (e) {
+              // ignore storage failures
+            }
+          }
+
+          // Update best-wave HUD for this session.
+          bestZone.text.setText(`BEST: Wave ${Math.max(previousBest, currentWave)}`);
+
           this.resultCard = new window.ResultCard(this, {
             session: sessionSnapshot,
+            newRecord: isNewRecord,
+            bestWave: Math.max(previousBest, currentWave),
             onFightAgain: () => {
               this.battle.restartRun();
               this.spinButtonText.setText('SPIN');
