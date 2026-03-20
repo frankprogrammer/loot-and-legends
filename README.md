@@ -32,6 +32,9 @@ Copy over the prompt file that was generated from Claude and put in the root of 
 
 Open the Agent tab in Cursor. The chat box should show "Agent" and "Auto"
 
+Give the prompt:
+can you save all propmts to a propmts.md file. any that I have done already and all future prompts
+
 Now we will go through each phase and verify the output. Enter:
 Build Phase 1
 
