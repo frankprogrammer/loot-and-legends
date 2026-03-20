@@ -104,6 +104,8 @@
       this.shieldIcon.setDepth(103);
 
       this.shieldIconPulseTween = null;
+
+      this.hpBarLowPulseTween = null;
     }
 
     get x() {
@@ -122,14 +124,32 @@
       this.hpBarText.setText(`${this.hp}/${this.maxHP}`);
       this.hpBarFill.setFillStyle(fillColor, 1);
 
-      // Reset scale so repeated tweens don't compound.
-      this.hpBarFill.scaleX = 1;
       this.scene.tweens.add({
         targets: this.hpBarFill,
         scaleX: pct,
         duration: 250,
         ease: 'Power2',
       });
+
+      // Pulse the HP bar when critical.
+      if (pct < 0.25) {
+        if (!this.hpBarLowPulseTween) {
+          this.hpBarLowPulseTween = this.scene.tweens.add({
+            targets: this.hpBarFill,
+            alpha: { from: 1, to: 0.65 },
+            duration: 320,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          });
+        }
+      } else {
+        if (this.hpBarLowPulseTween) {
+          this.hpBarLowPulseTween.stop();
+          this.hpBarLowPulseTween = null;
+        }
+        this.hpBarFill.setAlpha(1);
+      }
     }
 
     setShieldActive(active) {
@@ -157,7 +177,77 @@
         if (this.shieldIconPulseTween) this.shieldIconPulseTween.stop();
         this.shieldIconPulseTween = null;
         this.shieldBubble.setScale(1);
+        this.shieldBubble.setAlpha(0.18);
+        this.shieldIcon.setAlpha(0.95);
       }
+    }
+
+    async playShieldShatter() {
+      // Called when a shield absorbs/blocks a skull hit.
+      if (!this.shieldBubble.visible) return;
+
+      // Stop the gentle pulse before the shatter.
+      if (this.shieldIconPulseTween) this.shieldIconPulseTween.stop();
+      this.shieldIconPulseTween = null;
+
+      // shieldBubble.x/y are local to the container.
+      const bubbleX = this.container.x + this.shieldBubble.x;
+      const bubbleY = this.container.y + this.shieldBubble.y;
+
+      // Spawn small shatter shards (placeholder circles).
+      const shards = [];
+      const shardCount = 10;
+      for (let i = 0; i < shardCount; i++) {
+        const a = (i / shardCount) * Math.PI * 2;
+        const dist = 8 + Math.random() * 18;
+        const dx = Math.cos(a) * dist;
+        const dy = Math.sin(a) * dist - 6;
+        const shard = this.scene.add.circle(
+          bubbleX,
+          bubbleY,
+          2 + Math.random() * 2,
+          0x2980b9,
+          0.9
+        );
+        shard.setDepth(140);
+        shards.push({ shard, dx, dy });
+
+        this.scene.tweens.add({
+          targets: shard,
+          x: shard.x + dx,
+          y: shard.y + dy,
+          alpha: 0,
+          duration: 260,
+          ease: 'Power2',
+          onComplete: () => shard.destroy(),
+        });
+      }
+
+      // Pop the bubble + icon quickly.
+      const bubblePromise = new Promise((resolve) => {
+        this.scene.tweens.add({
+          targets: this.shieldBubble,
+          scale: { from: 1, to: 0.2 },
+          alpha: 0,
+          duration: 220,
+          ease: 'Power2',
+          onComplete: resolve,
+        });
+      });
+
+      const iconPromise = new Promise((resolve) => {
+        this.scene.tweens.add({
+          targets: this.shieldIcon,
+          scale: { from: this.shieldIcon.scaleX ?? 1, to: 1.8 },
+          alpha: 0,
+          duration: 160,
+          ease: 'Power2',
+          onComplete: resolve,
+        });
+      });
+
+      await Promise.all([bubblePromise, iconPromise]);
+      this.setShieldActive(false);
     }
 
     async playTakeDamageAnimation(heavy = false) {

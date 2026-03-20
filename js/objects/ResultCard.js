@@ -118,7 +118,18 @@
         .setDepth(504);
 
       this.fightBtn.setInteractive({ useHandCursor: true });
-      this.fightBtn.on('pointerdown', () => this._onFightAgain());
+      this.fightBtn.on('pointerdown', () => {
+        // Button press feedback (placeholder).
+        this.scene.tweens.add({
+          targets: this.fightBtn,
+          scaleX: 0.95,
+          scaleY: 0.95,
+          duration: 80,
+          yoyo: true,
+          ease: 'Back.easeOut',
+        });
+        this._onFightAgain();
+      });
 
       // Animate in.
       this.card.setScale(0);

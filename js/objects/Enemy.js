@@ -105,7 +105,6 @@
     setHP(hp) {
       this.hp = Math.max(0, hp);
       const pct = this.maxHP > 0 ? this.hp / this.maxHP : 0;
-      this.hpBarFill.scaleX = 1;
       this.scene.tweens.add({
         targets: this.hpBarFill,
         scaleX: pct,
@@ -156,6 +155,25 @@
         await new Promise((r) => this.scene.time.delayedCall(90, r));
         this.body.setFillStyle(this.bodyBaseFill, 1);
         await new Promise((r) => this.scene.time.delayedCall(90, r));
+      }
+
+      // Smoke poof (placeholder circles).
+      const smokeCount = 10;
+      for (let i = 0; i < smokeCount; i++) {
+        const c = this.scene.add.circle(0, 0, 3 + Math.random() * 5, 0xaaaaaa, 0.55);
+        c.setDepth(160);
+        const ox = (Math.random() - 0.5) * 40;
+        const oy = -10 + Math.random() * 10;
+        this.container.add(c);
+        this.scene.tweens.add({
+          targets: c,
+          x: ox,
+          y: oy,
+          alpha: 0,
+          duration: 420,
+          ease: 'Power2',
+          onComplete: () => c.destroy(),
+        });
       }
 
       // Collapse.

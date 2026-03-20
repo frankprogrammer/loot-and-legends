@@ -119,7 +119,9 @@
         this.scene.time.delayedCall(stopTimes[2] + pauseMs, () => {
           // Flash payline and glow/pulse matching symbols before the action "fires".
           this._drawPayline(1);
-          this._pulseMatchingReels(action.type, pulseMs);
+          if (action.matchLevel > 0) {
+            this._pulseMatchingReels(action.type, pulseMs);
+          }
 
           this.scene.time.delayedCall(pulseMs, () => {
             this._drawPayline(0);

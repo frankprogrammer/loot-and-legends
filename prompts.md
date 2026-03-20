@@ -10,4 +10,5 @@ This file logs user prompts for this project. Future prompts will be appended he
 - **the three slots that slide down do not appear to be centered. they are left aligned**
 - **build phase 3**
 - **build phase 4**
+- **build phase 5**
 

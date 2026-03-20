@@ -60,6 +60,105 @@
       this.spawnEnemyForWave(this.session.currentWave, true);
     }
 
+    _delay(ms) {
+      return new Promise((resolve) => this.scene.time.delayedCall(ms, resolve));
+    }
+
+    _spawnRain(count, color, startY, endY, xRange) {
+      for (let i = 0; i < count; i++) {
+        const x =
+          xRange?.min != null && xRange?.max != null
+            ? xRange.min + Math.random() * (xRange.max - xRange.min)
+            : this.W / 2 + (Math.random() - 0.5) * 120;
+        const y = startY;
+        const p = this.scene.add.circle(x, y, 2 + Math.random() * 3, color, 0.85);
+        p.setDepth(180);
+        this.scene.tweens.add({
+          targets: p,
+          y: endY,
+          alpha: 0,
+          duration: 650 + Math.random() * 120,
+          ease: 'Power2',
+          onComplete: () => p.destroy(),
+        });
+      }
+    }
+
+    async _playJackpotIntro(action) {
+      // Design doc: show a big action name slam + subtle background tint.
+      const map = {
+        sword: { text: action.name, tint: 0xc0392b },
+        shield: { text: action.name, tint: 0x2980b9 },
+        fireball: { text: action.name, tint: 0xe67e22 },
+        potion: { text: action.name, tint: 0x27ae60 },
+        skull: { text: action.name, tint: 0xe74c3c },
+      };
+      const info = map[action.type] ?? { text: action.name, tint: 0xffd700 };
+
+      // Background tint flash.
+      const overlay = this.scene.add.rectangle(
+        this.W / 2,
+        this.H / 2,
+        this.W,
+        this.H,
+        info.tint,
+        0.0
+      );
+      overlay.setDepth(300);
+
+      const overlayPromise = new Promise((resolve) => {
+        this.scene.tweens.add({
+          targets: overlay,
+          alpha: 0.2,
+          duration: 140,
+          yoyo: true,
+          onComplete: () => {
+            overlay.destroy();
+            resolve();
+          },
+        });
+      });
+
+      const centerText = this.scene.add
+        .text(this.W / 2, this.H / 2 - 20, `${info.text}!`, {
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: '44px',
+          color: action.type === 'skull' ? '#E74C3C' : '#FFD700',
+          fontStyle: 'bold',
+          align: 'center',
+        })
+        .setOrigin(0.5);
+      centerText.setDepth(301);
+      centerText.setScale(2.0);
+      centerText.setAlpha(1);
+
+      const textPromise = new Promise((resolve) => {
+        this.scene.tweens.add({
+          targets: centerText,
+          scale: 1.0,
+          duration: 320,
+          ease: 'Back.easeOut',
+          onComplete: () => resolve(),
+        });
+      });
+
+      await Promise.all([overlayPromise, textPromise]);
+
+      // Fade it out quickly so combat remains readable.
+      await new Promise((resolve) => {
+        this.scene.tweens.add({
+          targets: centerText,
+          alpha: 0,
+          duration: 220,
+          delay: 260,
+          onComplete: () => {
+            centerText.destroy();
+            resolve();
+          },
+        });
+      });
+    }
+
     spawnEnemyForWave(wave, immediate = false) {
       const enemyData = window.getEnemyForWave(wave);
 
@@ -93,6 +192,10 @@
       try {
         if (!action || !action.type) {
           return { gameOver: this.session.isGameOver };
+        }
+
+        if (action.matchLevel === 2) {
+          await this._playJackpotIntro(action);
         }
 
         if (action.type === 'sword') {
@@ -134,9 +237,10 @@
       slash.setDepth(140);
       const ex = this.enemy.x;
       const ey = this.enemy.y - 5;
-      slash.lineStyle(5, 0xffffff, 0.95);
+      const isCritical = action.matchLevel === 2;
+      slash.lineStyle(isCritical ? 8 : 5, 0xffffff, 0.95);
       slash.beginPath();
-      slash.arc(ex, ey, 34, -0.8, 0.8, false);
+      slash.arc(ex, ey, isCritical ? 42 : 34, -0.8, 0.8, false);
       slash.strokePath();
 
       this.scene.tweens.add({
@@ -164,18 +268,49 @@
 
     async _handlePlayerFireball(action) {
       const dmg = Math.max(0, action.value ?? 0);
+      const isInferno = action.matchLevel === 2;
 
       await this.player.playFireballCast();
 
       // Projectile placeholder.
+      if (isInferno) {
+        this._spawnRain(20, 0xe67e22, 0, this.enemy.y + 10, {
+          min: this.enemy.x - 110,
+          max: this.enemy.x + 110,
+        });
+      }
+
       const projectile = this.scene.add.circle(
         this.player.x + 30,
         this.player.y - 20,
-        8,
+        isInferno ? 20 : 8,
         0xe67e22,
         1
       );
       projectile.setDepth(140);
+
+      // Trail dots while the projectile travels.
+      const trail = this.scene.time.addEvent({
+        delay: 40,
+        repeat: 9,
+        callback: () => {
+          const t = this.scene.add.circle(
+            projectile.x,
+            projectile.y,
+            2 + Math.random() * 3,
+            0xe67e22,
+            0.9
+          );
+          t.setDepth(139);
+          this.scene.tweens.add({
+            targets: t,
+            alpha: 0,
+            duration: 220,
+            ease: 'Power2',
+            onComplete: () => t.destroy(),
+          });
+        },
+      });
 
       await new Promise((resolve) => {
         this.scene.tweens.add({
@@ -184,14 +319,17 @@
           y: this.enemy.y - 20,
           duration: 400,
           ease: 'Sine.easeInOut',
-          onComplete: resolve,
+          onComplete: () => {
+            if (trail && trail.remove) trail.remove();
+            resolve();
+          },
         });
       });
 
       const impact = this.scene.add.circle(
         this.enemy.x,
         this.enemy.y - 10,
-        10,
+        isInferno ? 18 : 10,
         0xe67e22,
         0.75
       );
@@ -202,7 +340,12 @@
         alpha: 0,
         duration: 260,
         ease: 'Power2',
-        onComplete: () => impact.destroy(),
+        onComplete: () => {
+          if (isInferno) {
+            this.scene.cameras.main.shake(300, 0.01);
+          }
+          impact.destroy();
+        },
       });
       projectile.destroy();
 
@@ -224,6 +367,7 @@
 
     async _handlePlayerPotion(action) {
       let heal = Math.max(0, action.value ?? 0);
+      const isFullRestore = action.matchLevel === 2;
       if (action.name === 'FULL RESTORE') {
         heal = this.playerMaxHP - this.player.hp;
       }
@@ -234,6 +378,31 @@
       this.player.setHP(before + heal);
 
       if (heal > 0) {
+        if (isFullRestore) {
+          // Green explosion particles.
+          for (let i = 0; i < 14; i++) {
+            const p = this.scene.add.circle(
+              this.player.x + (Math.random() - 0.5) * 25,
+              this.player.y + (Math.random() - 0.5) * 25,
+              2 + Math.random() * 3,
+              0x27ae60,
+              0.9
+            );
+            p.setDepth(160);
+            const dx = (Math.random() - 0.5) * 50;
+            const dy = -30 - Math.random() * 30;
+            this.scene.tweens.add({
+              targets: p,
+              x: p.x + dx,
+              y: p.y + dy,
+              alpha: 0,
+              duration: 520,
+              ease: 'Power2',
+              onComplete: () => p.destroy(),
+            });
+          }
+        }
+
         window.FloatingText.spawn(
           this.scene,
           `+${heal}`,
@@ -261,6 +430,7 @@
 
     async _handleEnemySkull(action) {
       const mult = action.value ?? 1;
+      const isCatastrophe = action.matchLevel === 2;
       let raw = (this.enemy.enemyData.damage ?? this.enemy.enemyData.baseDamage ?? 0) * mult;
 
       // Slow enemies deal reduced skull damage.
@@ -268,6 +438,37 @@
       raw = Math.max(0, Math.round(raw));
 
       const bypassShield = this.enemy.speed === 'fast';
+
+      if (isCatastrophe) {
+        // Catastrophe pre-fx: red flash + enemy grow + shake.
+        const flash = this.scene.add.rectangle(
+          this.W / 2,
+          this.H / 2,
+          this.W,
+          this.H,
+          0xe74c3c,
+          0.0
+        );
+        flash.setDepth(320);
+        this.scene.tweens.add({
+          targets: flash,
+          alpha: 0.65,
+          duration: 120,
+          yoyo: true,
+          onComplete: () => flash.destroy(),
+        });
+
+        this.scene.tweens.add({
+          targets: this.enemy.container,
+          scaleX: 1.3,
+          scaleY: 1.3,
+          duration: 120,
+          ease: 'Power2',
+          yoyo: true,
+        });
+
+        this.scene.cameras.main.shake(400, 0.012);
+      }
 
       await this.enemy.playAttackAnimation();
 
@@ -299,7 +500,7 @@
         damageTaken = Math.max(0, raw - blocked);
 
         // Shield is consumed on the next skull hit.
-        this.player.setShieldActive(false);
+        await this.player.playShieldShatter();
         this.session.shieldActive = false;
         this.session.shieldPower = 0;
         this.session.shieldReflectPower = 0;
@@ -319,7 +520,7 @@
 
       // Apply player damage.
       if (damageTaken > 0) {
-        await this.player.playTakeDamageAnimation(false);
+        await this.player.playTakeDamageAnimation(isCatastrophe);
         this.player.setHP(this.player.hp - damageTaken);
         window.FloatingText.spawn(
           this.scene,
@@ -344,6 +545,10 @@
       if (reflected > 0 && this.enemy.hp > 0) {
         await this.enemy.playTakeDamageAnimation(false);
         this.enemy.setHP(this.enemy.hp - reflected);
+        this.session.totalDamageDealt += reflected;
+        if (reflected > this.session.bestHit.value) {
+          this.session.bestHit = { name: action.name ?? 'ATTACK', value: reflected };
+        }
         window.FloatingText.spawn(
           this.scene,
           `-${reflected}`,
@@ -370,17 +575,38 @@
       this.session.currentWave += 1;
       this._updateWaveText();
 
+      // Cosmetic gold coin particles flying toward wave counter.
+      for (let i = 0; i < 4; i++) {
+        const c = this.scene.add.circle(
+          this.enemy.x + (Math.random() - 0.5) * 20,
+          this.enemy.y - 10 + (Math.random() - 0.5) * 15,
+          3 + Math.random() * 2,
+          0xffd700,
+          0.95
+        );
+        c.setDepth(190);
+        this.scene.tweens.add({
+          targets: c,
+          x: this.W / 2 + (Math.random() - 0.5) * 20,
+          y: 37.5,
+          alpha: 0,
+          duration: 520,
+          ease: 'Power2',
+          onComplete: () => c.destroy(),
+        });
+      }
+
       // Small "WAVE X" flash in center of battle area.
       const centerText = this.scene.add.text(
         this.W / 2,
         260,
         `WAVE ${this.session.currentWave}`,
         {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '34px',
-        color: '#FFD700',
-        fontStyle: 'bold',
-      }
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: '34px',
+          color: '#FFD700',
+          fontStyle: 'bold',
+        }
       );
       centerText.setOrigin(0.5);
       centerText.setDepth(260);
