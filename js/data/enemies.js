@@ -10,6 +10,8 @@
       color: '#8B5E3C',
       w: 50,
       h: 55,
+      /** Phaser texture key; loaded from assets/rat.png */
+      spriteTextureKey: 'enemy_rat',
     },
     skeleton: {
       id: 'skeleton',
@@ -20,6 +22,7 @@
       color: '#D6D6D6',
       w: 65,
       h: 80,
+      spriteTextureKey: 'enemy_skeleton',
     },
     orc_grunt: {
       id: 'orc_grunt',
@@ -30,6 +33,7 @@
       color: '#2ECC71',
       w: 70,
       h: 90,
+      spriteTextureKey: 'enemy_orc',
     },
     dark_elf: {
       id: 'dark_elf',
@@ -40,6 +44,7 @@
       color: '#8E44AD',
       w: 65,
       h: 85,
+      spriteTextureKey: 'enemy_dark_elf',
     },
     troll: {
       id: 'troll',
@@ -50,6 +55,7 @@
       color: '#7F8C8D',
       w: 90,
       h: 105,
+      spriteTextureKey: 'enemy_troll',
     },
     shadow_knight: {
       id: 'shadow_knight',
@@ -60,6 +66,7 @@
       color: '#2C3E50',
       w: 75,
       h: 95,
+      spriteTextureKey: 'enemy_shadow_knight',
     },
     necromancer: {
       id: 'necromancer',
@@ -70,6 +77,7 @@
       color: '#27AE60',
       w: 75,
       h: 95,
+      spriteTextureKey: 'enemy_necromancer',
     },
     dragon: {
       id: 'dragon',
@@ -80,6 +88,7 @@
       color: '#E67E22',
       w: 110,
       h: 120,
+      spriteTextureKey: 'enemy_dragon',
     },
   };
 

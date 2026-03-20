@@ -8,37 +8,60 @@
       this.container = this.scene.add.container(x, y);
       this.container.setDepth(50);
 
-      // Body placeholder (tintable by swapping fill).
-      this.body = this.scene.add.rectangle(0, 0, 60, 80, 0x27ae60, 1);
-      this.body.setStrokeStyle(2, 0x145a32, 0.6);
+      // On-screen character size (was 60×80; triple for readability).
+      const GW = 180;
+      const GH = 240;
 
-      // Face details.
-      const eyeL = this.scene.add.circle(-12, -10, 3.5, 0xffffff, 1);
-      const eyeR = this.scene.add.circle(12, -10, 3.5, 0xffffff, 1);
-      const mouth = this.scene.add.graphics();
-      mouth.lineStyle(3, 0x000000, 0.8);
-      mouth.beginPath();
-      mouth.moveTo(-8, 10);
-      mouth.lineTo(8, 10);
-      mouth.lineTo(0, 16);
-      mouth.strokePath();
-
-      this.label = this.scene.add
-        .text(0, 22, 'GOBLIN', {
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          fontSize: '12px',
-          color: '#F5E6D3',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-
+      // Character visual: PNG from preload (BootScene + GameScene), or drawn fallback.
+      const hasTex =
+        typeof this.scene.textures.exists === "function" &&
+        this.scene.textures.exists("goblin");
+      const texObj = this.scene.textures.get("goblin");
+      this.useSprite = hasTex || texObj != null;
+      this.body = null;
       this.bodyBaseFill = 0x27ae60;
 
-      this.container.add([this.body, eyeL, eyeR, mouth, this.label]);
+      if (!this.useSprite) {
+        console.warn(
+          "[Loot & Legends] Texture 'goblin' not found — using placeholder. " +
+            "Put assets/goblin.png next to index.html. If you open the game as file://, use a local server (e.g. npx serve) so the image can load."
+        );
+      }
 
-      // Shield bubble.
-      this.shieldBubble = this.scene.add.circle(0, -2, 48, 0x2980b9, 0.18);
-      this.shieldBubble.setStrokeStyle(3, 0x2980b9, 0.7);
+      if (this.useSprite) {
+        this.body = this.scene.add.sprite(0, 0, "goblin");
+        this.body.setOrigin(0.5, 0.5);
+        this.body.setDisplaySize(GW, GH);
+        this.container.add(this.body);
+      } else {
+        this.body = this.scene.add.rectangle(0, 0, GW, GH, 0x27ae60, 1);
+        this.body.setStrokeStyle(2, 0x145a32, 0.6);
+
+        const eyeL = this.scene.add.circle(-36, -30, 10.5, 0xffffff, 1);
+        const eyeR = this.scene.add.circle(36, -30, 10.5, 0xffffff, 1);
+        const mouth = this.scene.add.graphics();
+        mouth.lineStyle(9, 0x000000, 0.8);
+        mouth.beginPath();
+        mouth.moveTo(-24, 30);
+        mouth.lineTo(24, 30);
+        mouth.lineTo(0, 48);
+        mouth.strokePath();
+
+        this.label = this.scene.add
+          .text(0, 66, "GOBLIN", {
+            fontFamily: "Arial, Helvetica, sans-serif",
+            fontSize: "36px",
+            color: "#F5E6D3",
+            fontStyle: "bold",
+          })
+          .setOrigin(0.5);
+
+        this.container.add([this.body, eyeL, eyeR, mouth, this.label]);
+      }
+
+      // Shield bubble (scaled to wrap larger goblin).
+      this.shieldBubble = this.scene.add.circle(0, -6, 144, 0x2980b9, 0.18);
+      this.shieldBubble.setStrokeStyle(9, 0x2980b9, 0.7);
       this.shieldBubble.setVisible(false);
       this.container.add(this.shieldBubble);
 
@@ -49,7 +72,7 @@
         duration: 1500,
         yoyo: true,
         repeat: -1,
-        ease: 'Sine.easeInOut',
+        ease: "Sine.easeInOut",
       });
 
       // HP bar.
@@ -66,7 +89,7 @@
         w,
         h,
         0x333333,
-        1
+        1,
       );
       this.hpBarBg.setDepth(100);
 
@@ -76,17 +99,17 @@
         w,
         h,
         0x2ecc71,
-        1
+        1,
       );
       this.hpBarFill.setDepth(101);
       this.hpBarFill.setOrigin(0.5, 0.5);
 
       this.hpBarText = this.scene.add
         .text(barX + w / 2, barY + h / 2, `${this.hp}/${this.maxHP}`, {
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          fontSize: '14px',
-          color: '#F5E6D3',
-          fontStyle: 'bold',
+          fontFamily: "Arial, Helvetica, sans-serif",
+          fontSize: "14px",
+          color: "#F5E6D3",
+          fontStyle: "bold",
         })
         .setOrigin(0.5);
       this.hpBarText.setDepth(102);
@@ -97,7 +120,7 @@
         barY + h / 2,
         10,
         0x2980b9,
-        0.95
+        0.95,
       );
       this.shieldIcon.setStrokeStyle(2, 0xd6eaf8, 0.8);
       this.shieldIcon.setVisible(false);
@@ -128,7 +151,7 @@
         targets: this.hpBarFill,
         scaleX: pct,
         duration: 250,
-        ease: 'Power2',
+        ease: "Power2",
       });
 
       // Pulse the HP bar when critical.
@@ -140,7 +163,7 @@
             duration: 320,
             yoyo: true,
             repeat: -1,
-            ease: 'Sine.easeInOut',
+            ease: "Sine.easeInOut",
           });
         }
       } else {
@@ -164,14 +187,14 @@
           duration: 450,
           yoyo: true,
           repeat: -1,
-          ease: 'Sine.easeInOut',
+          ease: "Sine.easeInOut",
         });
 
         this.scene.tweens.add({
           targets: this.shieldBubble,
           scale: { from: 0.4, to: 1.0 },
           duration: 200,
-          ease: 'Power2',
+          ease: "Power2",
         });
       } else {
         if (this.shieldIconPulseTween) this.shieldIconPulseTween.stop();
@@ -207,7 +230,7 @@
           bubbleY,
           2 + Math.random() * 2,
           0x2980b9,
-          0.9
+          0.9,
         );
         shard.setDepth(140);
         shards.push({ shard, dx, dy });
@@ -218,7 +241,7 @@
           y: shard.y + dy,
           alpha: 0,
           duration: 260,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: () => shard.destroy(),
         });
       }
@@ -230,7 +253,7 @@
           scale: { from: 1, to: 0.2 },
           alpha: 0,
           duration: 220,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: resolve,
         });
       });
@@ -241,7 +264,7 @@
           scale: { from: this.shieldIcon.scaleX ?? 1, to: 1.8 },
           alpha: 0,
           duration: 160,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: resolve,
         });
       });
@@ -254,25 +277,39 @@
       const dx = heavy ? -30 : -20;
       const originalX = this.container.x;
 
-      // Flash red.
-      this.body.setFillStyle(0xe74c3c, 1);
-      this.scene.tweens.add({
-        targets: this.body,
-        alpha: { from: 1, to: 0.85 },
-        duration: 120,
-        yoyo: true,
-        ease: 'Power2',
-        onComplete: () => {
-          this.body.setFillStyle(this.bodyBaseFill, 1);
-        },
-      });
+      // Flash red (sprite: tint; rectangle: fill).
+      if (this.useSprite) {
+        this.body.setTint(0xff4444);
+        this.scene.tweens.add({
+          targets: this.body,
+          alpha: { from: 1, to: 0.85 },
+          duration: 120,
+          yoyo: true,
+          ease: "Power2",
+          onComplete: () => {
+            this.body.clearTint();
+          },
+        });
+      } else {
+        this.body.setFillStyle(0xe74c3c, 1);
+        this.scene.tweens.add({
+          targets: this.body,
+          alpha: { from: 1, to: 0.85 },
+          duration: 120,
+          yoyo: true,
+          ease: "Power2",
+          onComplete: () => {
+            this.body.setFillStyle(this.bodyBaseFill, 1);
+          },
+        });
+      }
 
       await new Promise((resolve) => {
         this.scene.tweens.add({
           targets: this.container,
           x: originalX + dx,
           duration: 120,
-          ease: 'Power2',
+          ease: "Power2",
           yoyo: true,
           hold: 0,
           onComplete: resolve,
@@ -287,7 +324,7 @@
           targets: this.container,
           x: originalX + 40,
           duration: 120,
-          ease: 'Power2',
+          ease: "Power2",
           yoyo: true,
           onComplete: resolve,
         });
@@ -301,7 +338,7 @@
           targets: this.container,
           scaleX: originalScaleX * 1.04,
           duration: 120,
-          ease: 'Power2',
+          ease: "Power2",
           yoyo: true,
           onComplete: resolve,
         });
@@ -317,7 +354,7 @@
           scaleY: 0.95,
           duration: 100,
           yoyo: true,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: resolve,
         });
       });
@@ -325,21 +362,38 @@
     }
 
     async playHeal() {
-      const original = this.bodyBaseFill;
-      this.body.setFillStyle(0x2ecc71, 1);
-      await new Promise((resolve) => {
-        this.scene.tweens.add({
-          targets: this.body,
-          alpha: { from: 1, to: 0.75 },
-          duration: 200,
-          yoyo: true,
-          ease: 'Sine.easeInOut',
-          onComplete: () => {
-            this.body.setFillStyle(original, 1);
-            resolve();
-          },
+      if (this.useSprite) {
+        this.body.setTint(0x88ff88);
+        await new Promise((resolve) => {
+          this.scene.tweens.add({
+            targets: this.body,
+            alpha: { from: 1, to: 0.75 },
+            duration: 200,
+            yoyo: true,
+            ease: "Sine.easeInOut",
+            onComplete: () => {
+              this.body.clearTint();
+              resolve();
+            },
+          });
         });
-      });
+      } else {
+        const original = this.bodyBaseFill;
+        this.body.setFillStyle(0x2ecc71, 1);
+        await new Promise((resolve) => {
+          this.scene.tweens.add({
+            targets: this.body,
+            alpha: { from: 1, to: 0.75 },
+            duration: 200,
+            yoyo: true,
+            ease: "Sine.easeInOut",
+            onComplete: () => {
+              this.body.setFillStyle(original, 1);
+              resolve();
+            },
+          });
+        });
+      }
     }
 
     async playDeathAnimation() {
@@ -350,7 +404,7 @@
           scaleY: 0,
           alpha: 0,
           duration: 300,
-          ease: 'Power2',
+          ease: "Power2",
           onComplete: resolve,
         });
       });
@@ -359,4 +413,3 @@
 
   window.Goblin = Goblin;
 })();
-

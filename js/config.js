@@ -9,6 +9,11 @@
     height: GAME_HEIGHT,
     parent: 'game-container',
     backgroundColor: '#1A0E0A',
+    // Resolve asset URLs relative to index.html (helps with local servers).
+    loader: {
+      baseURL: '',
+      path: '',
+    },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

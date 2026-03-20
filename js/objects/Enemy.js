@@ -1,4 +1,15 @@
 (function () {
+  function enemyTextureReady(scene, textureKey) {
+    if (!textureKey) return false;
+    if (
+      typeof scene.textures.exists === 'function' &&
+      scene.textures.exists(textureKey)
+    ) {
+      return true;
+    }
+    return scene.textures.get(textureKey) != null;
+  }
+
   class Enemy {
     constructor(scene, x, y, enemyData, hpBar) {
       this.scene = scene;
@@ -11,36 +22,39 @@
       this.container.setScale(1);
       this.container.setAlpha(1);
 
-      const w = enemyData.w ?? 70;
-      const h = enemyData.h ?? 90;
-      // Phaser expects int fill for rectangles.
+      // Match goblin: 3× on-screen size vs design-doc base w/h in enemies.js.
+      const SIZE_SCALE = 3;
+      const w = (enemyData.w ?? 70) * SIZE_SCALE;
+      const h = (enemyData.h ?? 90) * SIZE_SCALE;
+      this.visualW = w;
+      this.visualH = h;
       const fill = parseInt(enemyData.color.replace('#', ''), 16);
       this.bodyBaseFill = fill;
 
-      this.body = this.scene.add.rectangle(0, 0, w, h, fill, 1);
-      this.body.setStrokeStyle(2, 0x000000, 0.15);
+      const texKey = enemyData.spriteTextureKey;
+      this.useSprite = enemyTextureReady(scene, texKey);
 
-      // Simple label.
-      this.nameText = this.scene.add
-        .text(0, 12, enemyData.name, {
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          fontSize: '13px',
-          color: '#F5E6D3',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
+      if (this.useSprite) {
+        this.body = this.scene.add.sprite(0, 0, texKey);
+        this.body.setOrigin(0.5, 0.5);
+        this.body.setDisplaySize(w, h);
+        this.weapon = null;
+        this.container.add(this.body);
+      } else {
+        this.body = this.scene.add.rectangle(0, 0, w, h, fill, 1);
+        this.body.setStrokeStyle(2 * SIZE_SCALE, 0x000000, 0.15);
 
-      // Subtle "weapon" mark.
-      this.weapon = this.scene.add.rectangle(
-        0,
-        -h * 0.1,
-        Math.max(10, w * 0.18),
-        Math.max(30, h * 0.3),
-        0x000000,
-        0.15
-      );
+        this.weapon = this.scene.add.rectangle(
+          0,
+          -h * 0.1,
+          Math.max(10, w * 0.18),
+          Math.max(30, h * 0.3),
+          0x000000,
+          0.15
+        );
 
-      this.container.add([this.body, this.weapon, this.nameText]);
+        this.container.add([this.body, this.weapon]);
+      }
 
       // Idle breathing tween.
       this.scene.tweens.add({
@@ -114,8 +128,11 @@
     }
 
     async playTakeDamageAnimation(heavy = false) {
-      // Flash white.
-      this.body.setFillStyle(0xffffff, 1);
+      if (this.useSprite) {
+        this.body.setTint(0xffffff);
+      } else {
+        this.body.setFillStyle(0xffffff, 1);
+      }
 
       const dx = heavy ? 28 : 20;
       const originalX = this.container.x;
@@ -130,8 +147,11 @@
         });
       });
 
-      // Restore.
-      this.body.setFillStyle(this.bodyBaseFill, 1);
+      if (this.useSprite) {
+        this.body.clearTint();
+      } else {
+        this.body.setFillStyle(this.bodyBaseFill, 1);
+      }
     }
 
     async playAttackAnimation() {
@@ -149,21 +169,29 @@
     }
 
     async playDeathAnimation() {
-      // Rapid flashes.
       for (let i = 0; i < 3; i++) {
-        this.body.setFillStyle(0xffffff, 1);
+        if (this.useSprite) {
+          this.body.setTint(0xffffff);
+        } else {
+          this.body.setFillStyle(0xffffff, 1);
+        }
         await new Promise((r) => this.scene.time.delayedCall(90, r));
-        this.body.setFillStyle(this.bodyBaseFill, 1);
+        if (this.useSprite) {
+          this.body.clearTint();
+        } else {
+          this.body.setFillStyle(this.bodyBaseFill, 1);
+        }
         await new Promise((r) => this.scene.time.delayedCall(90, r));
       }
 
-      // Smoke poof (placeholder circles).
       const smokeCount = 10;
+      const spread = Math.max(40, (this.visualW ?? 120) * 0.45);
       for (let i = 0; i < smokeCount; i++) {
         const c = this.scene.add.circle(0, 0, 3 + Math.random() * 5, 0xaaaaaa, 0.55);
         c.setDepth(160);
-        const ox = (Math.random() - 0.5) * 40;
-        const oy = -10 + Math.random() * 10;
+        const ox = (Math.random() - 0.5) * spread;
+        const oy =
+          -(this.visualH ?? 120) * 0.08 + Math.random() * ((this.visualH ?? 120) * 0.08);
         this.container.add(c);
         this.scene.tweens.add({
           targets: c,
@@ -176,7 +204,6 @@
         });
       }
 
-      // Collapse.
       await new Promise((resolve) => {
         this.scene.tweens.add({
           targets: this.container,
@@ -192,4 +219,3 @@
 
   window.Enemy = Enemy;
 })();
-

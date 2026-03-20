@@ -19,7 +19,6 @@
       const barBg = this.add.rectangle(W / 2, barY, barW, barH, 0x333333, 1);
       barBg.setStrokeStyle(2, 0x8b7355, 0.8);
 
-      // Left-anchored loading bar.
       const barLeftX = W / 2 - barW / 2;
       const fillBar = this.add.rectangle(
         barLeftX,
@@ -31,7 +30,7 @@
       );
       fillBar.setOrigin(0, 0.5);
 
-      const title = this.add
+      this.add
         .text(W / 2, H * 0.52, 'LOOT & LEGENDS', {
           fontFamily: 'Arial, Helvetica, sans-serif',
           fontSize: '22px',
@@ -40,26 +39,37 @@
         })
         .setOrigin(0.5);
 
-      const progressState = { p: 0 };
-      this.tweens.add({
-        targets: progressState,
-        p: 1,
-        duration: 650,
-        ease: 'Linear',
-        onUpdate: () => {
-          fillBar.width = barW * progressState.p;
-        },
-        onComplete: () => {
-          // Phase 1 has no external assets yet; transition immediately.
-          this.scene.start('GameScene');
-        },
+      // Same paths as GameScene.preload — assets next to index.html.
+      this.load.image('goblin', 'assets/goblin.png');
+      this.load.image('enemy_rat', 'assets/rat.png');
+      this.load.image('enemy_skeleton', 'assets/skeleton.png');
+      this.load.image('enemy_orc', 'assets/orc.png');
+      this.load.image('enemy_dark_elf', 'assets/darkElf.png');
+      this.load.image('enemy_troll', 'assets/troll.png');
+      this.load.image('enemy_shadow_knight', 'assets/shadowKnight.png');
+      this.load.image('enemy_necromancer', 'assets/necromancer.png');
+      this.load.image('enemy_dragon', 'assets/dragon.png');
+
+      this.load.on('progress', (value) => {
+        fillBar.width = barW * value;
       });
 
-      // Keep the loading bar visible even if preload completes instantly.
+      this.load.on('loaderror', (file) => {
+        console.warn(
+          '[Loot & Legends] Asset failed to load:',
+          file.key,
+          file.url,
+          '(Place assets/goblin.png next to index.html, or run from a local HTTP server.)'
+        );
+      });
+
       this.input.enabled = false;
+    }
+
+    create() {
+      this.scene.start('GameScene');
     }
   }
 
   window.BootScene = BootScene;
 })();
-

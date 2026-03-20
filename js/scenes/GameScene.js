@@ -4,6 +4,30 @@
       super('GameScene');
     }
 
+    /**
+     * Load goblin here so the texture is guaranteed to exist before create().
+     * (BootScene also preloads it for the boot bar; Phaser dedupes the file.)
+     */
+    preload() {
+      this.load.image('goblin', 'assets/goblin.png');
+      this.load.image('enemy_rat', 'assets/rat.png');
+      this.load.image('enemy_skeleton', 'assets/skeleton.png');
+      this.load.image('enemy_orc', 'assets/orc.png');
+      this.load.image('enemy_dark_elf', 'assets/darkElf.png');
+      this.load.image('enemy_troll', 'assets/troll.png');
+      this.load.image('enemy_shadow_knight', 'assets/shadowKnight.png');
+      this.load.image('enemy_necromancer', 'assets/necromancer.png');
+      this.load.image('enemy_dragon', 'assets/dragon.png');
+      this.load.on('loaderror', (file) => {
+        console.warn(
+          '[Loot & Legends] Asset failed to load:',
+          file.key,
+          file.url,
+          '(Use http://localhost via a static server if opening index.html as file:// fails.)'
+        );
+      });
+    }
+
     create() {
       const W = this.scale.gameSize.width;
       const H = this.scale.gameSize.height;
